@@ -1,0 +1,4 @@
+gymnasium[atari,accept-rom-license]
+torch
+torchvision
+matplotlib
