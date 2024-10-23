@@ -2,3 +2,5 @@ gymnasium[atari,accept-rom-license]
 torch
 torchvision
 matplotlib
+https://raw.githubusercontent.com/Lasagne/Lasagne/master/requirements.txt
+https://github.com/Lasagne/Lasagne/archive/master.zip
