@@ -41,6 +41,18 @@ env = gym.make(games[g], obs_type='grayscale',
                         full_action_space=True)
 env.reset()
 
+
+def getActionEncoding(seq_len, d=possible_actions, n=10000):
+    # this uses nice spatia embedding instead of the torch default
+    P = np.zeros((seq_len, d))
+    for k in range(seq_len):
+        for i in np.arange(int(d/2)):
+            denominator = np.power(n, 2*i/d)
+            P[k, 2*i] = np.sin(k/denominator)
+            P[k, 2*i+1] = np.cos(k/denominator)
+    return P
+
+
 def AtariPress(action):
     global env,g,current_frame
     if action==0:

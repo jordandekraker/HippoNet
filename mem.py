@@ -13,6 +13,7 @@ class MemoryUnit(nn.Module):
         self.fea_dim = fea_dim
         self.bank = nn.Parameter(torch.Tensor(self.bank_dim, self.fea_dim), requires_grad=True)  # Note: gradient needs to be computed if this will be used to optimize VNet (low lr). We will ALSO update here with a high lr
         self.banklr = 0.5
+        self.threshold_memUpdate = 0.5 # if similarity is greater than this threshold, update the memory slot. else, LRUA
         self.bias = None
         self.shrink_thres= shrink_thres
         self.recency = torch.Tensor(self.bank_dim)
@@ -53,7 +54,7 @@ class MemoryUnit(nn.Module):
 
         ### LRUA update (https://arxiv.org/pdf/1605.06065?)
         LRUA = torch.argmin(self.recency)
-        ind = memind if torch.max(output[0,:])>0.5 else LRUA
+        ind = memind if torch.max(output[0,:]) > self.threshold_memUpdate else LRUA
         self.recency[memind] +=1
         self.recency -= 1/self.bank_dim
         self.bank.data[ind,:] = self.bank[ind,:]*(1-self.banklr) + (outback * self.banklr) # update only the least recently used access.
