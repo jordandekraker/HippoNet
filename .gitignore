@@ -2,4 +2,6 @@
 VNet_saved*
 HNet_saved*
 MNet_saved*
+*.gif
+log.pkl
 __pycache__/
