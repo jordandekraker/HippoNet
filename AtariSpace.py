@@ -1,4 +1,5 @@
 import gymnasium as gym
+import ale_py
 import math
 import random, datetime, os, copy, time
 import numpy as np
@@ -11,6 +12,9 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchvision
 
+from PIL import Image, ImageSequence
+import os
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("using " + str(device))
 
@@ -19,6 +23,7 @@ testonimport=False
 # utilities
 current_frame = torch.zeros((241,153)).to(device)
 possible_actions = 9 # possible actions in all games (inc 0)
+action_names = ['toggle down', 'toggle up', 'noop', 'fire', 'up', 'right', 'left', 'down']
 games = ['ALE/Tetris-v5', 'ALE/Adventure-v5', 'ALE/AirRaid-v5', 'ALE/Alien-v5', 'ALE/Amidar-v5', 'ALE/Assault-v5', 'ALE/Asterix-v5', 
          'ALE/Asteroids-v5', 'ALE/Atlantis-v5', 'ALE/Atlantis2-v5', 'ALE/Backgammon-v5', 'ALE/BankHeist-v5', 'ALE/BasicMath-v5', 
          'ALE/BattleZone-v5', 'ALE/BeamRider-v5', 'ALE/Berzerk-v5', 'ALE/Blackjack-v5', 'ALE/Bowling-v5', 'ALE/Boxing-v5', 'ALE/Breakout-v5', 
@@ -40,17 +45,6 @@ env = gym.make(games[g], obs_type='grayscale',
                         render_mode='rgb_array', 
                         full_action_space=True)
 env.reset()
-
-
-def getActionEncoding(seq_len, d=possible_actions, n=10000):
-    # this uses nice spatia embedding instead of the torch default
-    P = np.zeros((seq_len, d))
-    for k in range(seq_len):
-        for i in np.arange(int(d/2)):
-            denominator = np.power(n, 2*i/d)
-            P[k, 2*i] = np.sin(k/denominator)
-            P[k, 2*i+1] = np.cos(k/denominator)
-    return P
 
 
 def AtariPress(action):
@@ -82,19 +76,58 @@ def AtariPress(action):
     frame = torchvision.transforms.Resize((241,153))(frame)
     current_frame = frame.to(device)
 
-    return frame
+    return current_frame
 
 # utilities
-def live_plot(imgs):
+def live_plot(imgs, file_name=None, duration=200, loop=0):
+    """
+    Display a list of images in a single row. If a file_name is provided, 
+    append the plot to an existing GIF or create a new GIF.
+
+    Args:
+        imgs (list): List of image tensors or arrays to display.
+        file_name (str, optional): Path to the .gif file. If None, no saving is performed.
+        duration (int): Duration of each frame in the GIF in milliseconds.
+        loop (int): Number of times the GIF will loop. 0 means infinite.
+    """
     clear_output(wait=True)
-    for p in range(len(imgs)):
-        plt.subplot(1,len(imgs),p+1)
-        if current_frame.dtype==torch.float32:
-            plt.imshow(torch.squeeze(imgs[p]).to('cpu').detach(), cmap='gray')
+    fig, axes = plt.subplots(1, len(imgs), figsize=(len(imgs) * 4, 4))
+    
+    if len(imgs) == 1:  # Handle single image case
+        axes = [axes]
+    
+    # Plot each image
+    for ax, img in zip(axes, imgs):
+        ax.axis('off')
+        if isinstance(img, torch.Tensor) and img.dtype == torch.float32:
+            ax.imshow(torch.squeeze(img).cpu().detach(), cmap='gray')
         else:
-            plt.imshow(imgs[p])
-        plt.axis('off')
-    plt.show();
+            ax.imshow(img)
+    
+    plt.tight_layout()
+    plt.show()
+
+    # Save to GIF if file_name is provided
+    if file_name:
+        # Save the current plot as an image
+        fig.canvas.draw()
+        image = Image.frombytes(
+            'RGB', fig.canvas.get_width_height(), fig.canvas.tostring_rgb()
+        )
+        plt.close(fig)  # Close the figure to avoid overlapping plots
+
+        if os.path.exists(file_name):
+            # Append to existing GIF
+            with Image.open(file_name) as gif:
+                frames = [frame.copy() for frame in ImageSequence.Iterator(gif)]
+                frames.append(image)
+                frames[0].save(
+                    file_name, save_all=True, append_images=frames[1:], duration=duration, loop=loop
+                )
+        else:
+            # Create a new GIF
+            image.save(file_name, save_all=True, append_images=[image], duration=duration, loop=loop)
+            
 def frameproc(frame):
     global current_frame
     # trim, resize to suit our convolutions, and standardize

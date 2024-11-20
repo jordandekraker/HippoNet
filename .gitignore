@@ -1,5 +1,5 @@
 .ipynb_checkpoints/
-VNet_saved
-HNet_saved
-MNet_saved
+VNet_saved*
+HNet_saved*
+MNet_saved*
 __pycache__/
